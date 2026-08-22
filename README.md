@@ -21,6 +21,8 @@ See `BUILD_LOG.md` for how this was built (an AI-assisted session), the decision
 - Light/dark mode toggle (persisted)
 - Export all data (including attached resume files) to a JSON backup file, and import it back in (merges with existing data)
 - Cross-tab sync: edits in one open tab show up in another without a reload
+- A **Dashboard** tab: applications-per-week trend, a pipeline funnel chart, a resume-usage breakdown, and a "needs a follow-up" worklist that flags jobs sitting in a stage longer than expected (clicking one opens it for editing)
+- A **Profile** tab: name, target role, LinkedIn URL, and a weekly application goal with progress -- local preferences, not an account (there's no login anywhere in this app)
 - Keyboard shortcuts: `Cmd/Ctrl+K` to jump to search, `n` to add a job, `Escape` to close any dialog
 - Responsive layout for laptop and tablet (columns scroll horizontally, each column scrolls independently)
 
@@ -63,11 +65,14 @@ src/
   constants.js          Kanban column definitions, default resume names, form defaults
   utils.js              Date formatting/labeling, JSON export, blob<->base64 helpers
   parseJobText.js       Best-effort regex parsing for the "paste to auto-fill" feature
+  hooks/useProfile.js   Local profile/preferences state, persisted to IndexedDB settings
   components/
     Board.jsx            DndContext + column layout
     Column.jsx            One Kanban column (droppable, sortable, scrollable)
     JobCard.jsx            One job card (draggable + keyboard-accessible move control)
     JobFormModal.jsx        Add/edit slide-over form: validation, duplicate warning, file attach, paste-to-auto-fill
+    Dashboard.jsx            Applications-per-week chart, pipeline funnel, resume usage, follow-ups worklist
+    Profile.jsx              Name / target role / LinkedIn / weekly goal, with goal progress
     ConfirmDialog.jsx        Generic delete confirmation
     Header.jsx                Search bar, theme toggle, export/import, add button
     AnalyticsStrip.jsx        Pipeline stats strip

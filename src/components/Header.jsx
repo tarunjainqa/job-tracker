@@ -1,5 +1,11 @@
 import { useRef } from 'react';
-import { Briefcase, Download, Moon, Plus, Search, Sun, Upload } from 'lucide-react';
+import { BarChart3, Briefcase, Download, LayoutGrid, Moon, Plus, Search, Sun, Upload, UserCircle } from 'lucide-react';
+
+const NAV_ITEMS = [
+  { id: 'board', label: 'Board', icon: LayoutGrid },
+  { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
+  { id: 'profile', label: 'Profile', icon: UserCircle },
+];
 
 export default function Header({
   search,
@@ -10,6 +16,8 @@ export default function Header({
   onExport,
   onImportFile,
   totalJobs,
+  activeView,
+  onChangeView,
 }) {
   const fileInputRef = useRef(null);
 
@@ -30,21 +38,48 @@ export default function Header({
           </div>
         </div>
 
-        <div className="relative ml-0 min-w-[180px] flex-1 sm:ml-4">
-          <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            id="job-search-input"
-            type="text"
-            value={search}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search by company or role..."
-            aria-label="Search jobs by company or role"
-            className="w-full rounded-lg border border-slate-300 bg-white py-1.5 pl-8 pr-12 text-sm text-slate-700 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-          />
-          <kbd className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-medium text-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-400 sm:inline-block">
-            ⌘K
-          </kbd>
-        </div>
+        <nav
+          role="tablist"
+          aria-label="Sections"
+          className="flex items-center gap-0.5 rounded-lg bg-slate-100 p-0.5 dark:bg-slate-800"
+        >
+          {NAV_ITEMS.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={activeView === id}
+              onClick={() => onChangeView(id)}
+              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                activeView === id
+                  ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-slate-100'
+                  : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+              }`}
+            >
+              <Icon size={14} />
+              {label}
+            </button>
+          ))}
+        </nav>
+
+        {activeView === 'board' && (
+          <div className="relative ml-0 min-w-[180px] flex-1 sm:ml-4">
+            <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              id="job-search-input"
+              type="text"
+              value={search}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder="Search by company or role..."
+              aria-label="Search jobs by company or role"
+              className="w-full rounded-lg border border-slate-300 bg-white py-1.5 pl-8 pr-12 text-sm text-slate-700 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+            />
+            <kbd className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-medium text-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-400 sm:inline-block">
+              ⌘K
+            </kbd>
+          </div>
+        )}
+        {activeView !== 'board' && <div className="flex-1" />}
 
         <div className="flex items-center gap-1.5">
           <button

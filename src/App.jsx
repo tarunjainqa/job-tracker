@@ -2,11 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import Header from './components/Header.jsx';
 import Board from './components/Board.jsx';
+import Dashboard from './components/Dashboard.jsx';
+import Profile from './components/Profile.jsx';
 import JobFormModal from './components/JobFormModal.jsx';
 import ConfirmDialog from './components/ConfirmDialog.jsx';
 import AnalyticsStrip from './components/AnalyticsStrip.jsx';
 import { useJobs } from './hooks/useJobs.js';
 import { useTheme } from './hooks/useTheme.js';
+import { useProfile } from './hooks/useProfile.js';
 import { downloadJson } from './utils.js';
 
 export default function App() {
@@ -23,7 +26,9 @@ export default function App() {
     loadSampleData,
   } = useJobs();
   const { theme, toggleTheme } = useTheme();
+  const { profile, saveProfile, loading: profileLoading } = useProfile();
 
+  const [view, setView] = useState('board');
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingJob, setEditingJob] = useState(null);
@@ -129,11 +134,13 @@ export default function App() {
         onExport={handleExport}
         onImportFile={handleImportFile}
         totalJobs={jobs.length}
+        activeView={view}
+        onChangeView={setView}
       />
 
-      {!loading && <AnalyticsStrip jobs={jobs} />}
+      {!loading && view === 'board' && <AnalyticsStrip jobs={jobs} />}
 
-      {!loading && jobs.length === 0 && (
+      {!loading && view === 'board' && jobs.length === 0 && (
         <div className="mx-auto mt-2 flex max-w-[1600px] flex-wrap items-center justify-between gap-2 px-4 sm:px-6">
           <div className="flex items-center gap-2 rounded-lg border border-dashed border-slate-300 bg-white px-3 py-2 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
             <Sparkles size={15} className="text-slate-400" />
@@ -155,8 +162,12 @@ export default function App() {
           <div className="flex h-full items-center justify-center text-sm text-slate-400">
             Loading your jobs...
           </div>
-        ) : (
+        ) : view === 'board' ? (
           <Board jobs={filteredJobs} onEdit={openEditModal} onDelete={setJobPendingDelete} onMove={moveJob} />
+        ) : view === 'dashboard' ? (
+          <Dashboard jobs={jobs} onEditJob={openEditModal} />
+        ) : (
+          <Profile profile={profile} onSave={saveProfile} jobs={jobs} loading={profileLoading} />
         )}
       </main>
 

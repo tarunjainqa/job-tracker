@@ -147,6 +147,61 @@ used throughout this build -- reading the code did not surface any of them:
    updater) before calling `setForm`, so the "filled in company, job title, ..." message is built from
    the same synchronous pass that decides what to fill.
 
+## Dashboard and Profile pages, added after initial delivery
+
+The user asked to add a Dashboard and a Profile page. Before building either, I asked what
+"dashboard" and "profile" should actually mean here, since the app had no navigation and no
+concept of a profile at all -- guessing would have meant a real risk of building the wrong thing
+and redoing it. The answers: the Dashboard should go deeper than the existing analytics strip
+(real charts, not just four stat tiles) plus a follow-ups worklist; the Profile should hold
+personal/job-search info (name, target role, LinkedIn, a weekly application goal), not become a
+full settings page; navigation should be simple top tabs next to the logo.
+
+**Navigation.** Added a `view` state in `App.jsx` ('board' | 'dashboard' | 'profile') and three
+tabs in the header. The search box is now hidden outside the Board view -- leaving it visible but
+inert on Dashboard/Profile would have looked like a bug (why doesn't typing here do anything?).
+Board's own scroll handling (each column scrolls independently, the whole board scrolls
+horizontally) is unusual enough that I checked it directly rather than assuming a generic
+`overflow-y-auto` on `<main>` would be harmless -- it would have fought with Board's existing
+layout, so Dashboard and Profile each scroll internally instead, matching the pattern Board
+already used rather than introducing a second one.
+
+**Dashboard charts.** Before writing any chart code I read through this workspace's data
+visualization skill rather than eyeballing colors -- its main rules: pick the chart form before
+color, one axis only, color follows the entity not an arbitrary series index, direct labels over
+relying on hover alone, and dark mode is a real validated pass, not an automatic invert. In
+practice: the pipeline funnel and per-stage colors reuse the exact same accent colors as the
+Kanban columns (color already means something in this app -- introducing a second, different blue
+for "Applied" on the Dashboard than the one on the board itself would have been confusing, not
+just inconsistent). The weekly-applications trend and resume-usage charts are single series, so
+they use one hue and skip a legend (a legend box restating "applications" for one blue bar family
+would cost space and say nothing a title doesn't already say). All charts are plain HTML/CSS bars,
+not a charting library -- nothing here needed one, and it keeps the bundle small. Charts were
+checked in both light and dark mode and at tablet width via Playwright screenshots, not just
+assumed to work from the code.
+
+**Follow-ups worklist.** "Needs a follow-up" flags any non-terminal job (Wishlist/Applied/
+Follow-up/Interview) that's been sitting without a status change longer than a stage-appropriate
+threshold (14/10/7/5 days respectively) -- Offer and Rejected are terminal, so they're excluded
+regardless of age. Clicking an item opens that job directly in the edit modal, tested end-to-end
+via Playwright (not just that the list renders, but that the click actually opens the right job).
+
+**Profile.** No login exists anywhere in this app by design, so "profile" is explicitly local
+preferences tied to this browser, not an account -- the page says so directly rather than implying
+otherwise. The weekly-goal progress is computed from the same `statusHistory` the funnel analytics
+already use (jobs that got an "applied" transition in the last 7 rolling days), so it's a real
+number, not a guess. The LinkedIn URL field uses `type="text" inputMode="url"` rather than
+`type="url"` -- the same fix applied earlier to the job form's own LinkedIn field, for the same
+reason (native `type="url"` validation silently intercepts the browser's own form submission
+before the app's own error message can run). Getting that right the second time, deliberately,
+rather than reintroducing the same bug, is the actual point of writing this log.
+
+Tested via a dedicated Playwright script covering: both nav tabs render and route correctly, the
+search box disappears outside Board, all four Dashboard sections render with real data, clicking a
+follow-up item opens the correct job for editing, the Profile form saves and -- reloading the page
+to prove it -- actually persisted to IndexedDB rather than just React state, and an invalid
+LinkedIn URL is rejected with a visible error instead of failing silently.
+
 ## Known limitations, stated rather than hidden
 
 - No automated test suite is committed -- verification was done with one-off Playwright scripts during
@@ -158,3 +213,8 @@ used throughout this build -- reading the code did not surface any of them:
 - The paste-to-auto-fill parser is heuristic, not AI -- it will miss or misparse postings in formats
   it doesn't recognize. It's designed to only ever fill blank fields (never overwrite something you
   typed) and always leaves the result editable, but it's still worth a manual glance before saving.
+- The Dashboard's follow-up thresholds (14/10/7/5 days per stage) are fixed constants, not
+  configurable per user -- reasonable defaults, not a claim that they fit every job search or
+  industry.
+- "Profile" is local preferences, not an account -- clearing this browser's site data erases it the
+  same way it erases jobs, and it doesn't sync to any other device or browser.
