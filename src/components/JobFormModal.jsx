@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, Paperclip, X } from 'lucide-react';
+import { AlertTriangle, ClipboardPaste, Paperclip, X } from 'lucide-react';
 import { COLUMNS, EMPTY_JOB_FORM, MAX_RESUME_FILE_BYTES } from '../constants.js';
+import { parseJobPosting } from '../parseJobText.js';
 
 function isValidUrl(value) {
   if (!value) return true;
@@ -22,6 +23,9 @@ export default function JobFormModal({ open, onClose, onSave, initialJob, resume
   const [form, setForm] = useState(EMPTY_JOB_FORM);
   const [errors, setErrors] = useState({});
   const [duplicateMatch, setDuplicateMatch] = useState(null);
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasteText, setPasteText] = useState('');
+  const [autoFillNote, setAutoFillNote] = useState('');
   const isEdit = Boolean(initialJob);
   const firstFieldRef = useRef(null);
 
@@ -34,6 +38,9 @@ export default function JobFormModal({ open, onClose, onSave, initialJob, resume
     }
     setErrors({});
     setDuplicateMatch(null);
+    setPasteOpen(false);
+    setPasteText('');
+    setAutoFillNote('');
     // move focus into the modal so keyboard/screen-reader users land somewhere useful
     const t = setTimeout(() => firstFieldRef.current?.focus(), 30);
     return () => clearTimeout(t);
@@ -65,6 +72,39 @@ export default function JobFormModal({ open, onClose, onSave, initialJob, resume
       errs.resumeFile = `That file is ${formatBytes(form.resumeFile.size)} -- please attach something under ${formatBytes(MAX_RESUME_FILE_BYTES)}.`;
     }
     return errs;
+  }
+
+  function handleAutoFill() {
+    const parsed = parseJobPosting(pasteText);
+    const filled = [];
+    // Compute against the current `form` state directly (not inside the setForm updater) --
+    // the updater callback only runs when React processes the state update, which is *after*
+    // this function returns, so reading `filled` right after calling setForm(fn) would always
+    // see it empty. Reading `form` here is safe because this runs from a plain button click,
+    // not a rapid-fire event where `form` could already be stale.
+    const next = { ...form };
+    if (parsed.company && !form.company.trim()) {
+      next.company = parsed.company;
+      filled.push('company');
+    }
+    if (parsed.title && !form.title.trim()) {
+      next.title = parsed.title;
+      filled.push('job title');
+    }
+    if (parsed.linkedinUrl && !form.linkedinUrl.trim()) {
+      next.linkedinUrl = parsed.linkedinUrl;
+      filled.push('URL');
+    }
+    if (parsed.salaryRange && !form.salaryRange.trim()) {
+      next.salaryRange = parsed.salaryRange;
+      filled.push('salary range');
+    }
+    setForm(next);
+    setAutoFillNote(
+      filled.length
+        ? `Filled in ${filled.join(', ')} -- double-check these before saving, this is best-effort parsing, not guaranteed.`
+        : "Couldn't confidently pick anything out of that text -- try pasting more of the posting, or just fill the fields in below."
+    );
   }
 
   function findDuplicate() {
@@ -129,6 +169,46 @@ export default function JobFormModal({ open, onClose, onSave, initialJob, resume
 
         <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-y-auto">
           <div className="flex-1 space-y-4 px-5 py-4">
+            <div className="rounded-lg border border-dashed border-slate-300 dark:border-slate-600">
+              <button
+                type="button"
+                onClick={() => setPasteOpen((v) => !v)}
+                className="flex w-full items-center justify-between gap-2 px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-300"
+                aria-expanded={pasteOpen}
+              >
+                <span className="inline-flex items-center gap-1.5">
+                  <ClipboardPaste size={14} />
+                  Paste from a job posting to auto-fill
+                </span>
+                <span className="text-xs text-slate-400">{pasteOpen ? 'Hide' : 'Show'}</span>
+              </button>
+              {pasteOpen && (
+                <div className="space-y-2 border-t border-dashed border-slate-300 px-3 py-3 dark:border-slate-600">
+                  <textarea
+                    value={pasteText}
+                    onChange={(e) => setPasteText(e.target.value)}
+                    rows={4}
+                    placeholder={'Paste the job title, company, link and/or the whole posting text here, e.g. copied straight off LinkedIn...'}
+                    className="w-full resize-none rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                  />
+                  <div className="flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={handleAutoFill}
+                      disabled={!pasteText.trim()}
+                      className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                    >
+                      Auto-fill fields below
+                    </button>
+                    <span className="text-[11px] text-slate-400">Best-effort text parsing, not AI -- always double-check</span>
+                  </div>
+                  {autoFillNote && (
+                    <p className="text-xs text-emerald-700 dark:text-emerald-400">{autoFillNote}</p>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
                 Company name <span className="text-red-500">*</span>

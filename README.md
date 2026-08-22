@@ -9,6 +9,7 @@ See `BUILD_LOG.md` for how this was built (an AI-assisted session), the decision
 - Six-column Kanban board: Wishlist → Applied → Follow-up → Interview → Offer → Rejected
 - Drag and drop cards between columns (`@dnd-kit`), plus a keyboard- and screen-reader-accessible "move to" control on every card as a non-drag alternative
 - Add / edit jobs via a slide-over form, with required-field validation and a duplicate-entry warning (same company + role)
+- **Paste from a job posting to auto-fill**: paste text copied from a LinkedIn posting, a plain-text job description, or a labeled listing, and it best-effort pre-fills Company / Title / URL / Salary range (never overwrites a field you've already typed, always leaves the result editable). Plain regex parsing, no AI call, works fully offline.
 - Delete with a confirmation dialog
 - Each card shows company, role, resume tag, salary range, an attached resume file (optional), days since applied — worded as "Saved" for Wishlist and "Applied" everywhere else — and a clickable LinkedIn link
 - Attach the actual resume file (PDF/doc/docx, up to 8MB) to a job, stored in IndexedDB and viewable from the card; it round-trips through Export/Import too
@@ -61,11 +62,12 @@ src/
   hooks/useTheme.js     Light/dark theme state, persisted to IndexedDB
   constants.js          Kanban column definitions, default resume names, form defaults
   utils.js              Date formatting/labeling, JSON export, blob<->base64 helpers
+  parseJobText.js       Best-effort regex parsing for the "paste to auto-fill" feature
   components/
     Board.jsx            DndContext + column layout
     Column.jsx            One Kanban column (droppable, sortable, scrollable)
     JobCard.jsx            One job card (draggable + keyboard-accessible move control)
-    JobFormModal.jsx        Add/edit slide-over form: validation, duplicate warning, file attach
+    JobFormModal.jsx        Add/edit slide-over form: validation, duplicate warning, file attach, paste-to-auto-fill
     ConfirmDialog.jsx        Generic delete confirmation
     Header.jsx                Search bar, theme toggle, export/import, add button
     AnalyticsStrip.jsx        Pipeline stats strip

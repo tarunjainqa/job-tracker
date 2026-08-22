@@ -110,6 +110,43 @@ fall back to treating their current status as a single-point history, so the sta
 rather than crashing on old data, but they also won't have accurate historical stage-transition timing
 until they're moved again.
 
+## "Paste to auto-fill" feature, added after initial delivery
+
+The user asked, after seeing the deployed app populated only with sample data: is there any way to
+pull or add real data automatically, short of standing up a backend and a scraping/AI pipeline? The
+option chosen was a permanent in-app helper: paste a block of text from a job posting (LinkedIn's own
+copy-paste layout, a plain-text "Title at Company" description, or a labeled listing with "Job Title:",
+"Company:", "Salary:" lines) and have it best-effort pre-fill the Company, Title, URL, and Salary range
+fields, leaving everything editable and never auto-submitting. This is plain regex/heuristics
+(`src/parseJobText.js`), not an AI call -- there's no backend in this app to send text to, and it's
+meant to keep working fully offline.
+
+Three real bugs were caught during testing here, all via the same Playwright-driven verification habit
+used throughout this build -- reading the code did not surface any of them:
+
+1. **Greedy company capture.** For "...at Netflix to join our streaming platform team.", the "Title at
+   Company" regex captured `"Netflix to join our streaming platform team."` as the company instead of
+   just `"Netflix"` -- the capture group had no stopping point short of the next comma/period. Fixed
+   with a non-greedy capture plus a lookahead that stops at common connector words ("to", "in", "for",
+   "as", "which", "that", "and") as well as punctuation or end of string.
+2. **Salary regex missed a "K" before the range separator.** `"Salary: $190K-$220K"` produced an empty
+   match because the pattern required the separator (`-`/`–`/`to`) to immediately follow the digits.
+   Fixed by allowing an optional `[Kk]` between the first number and the separator.
+3. **Stale-closure bug in the confirmation message (caught via screenshot, not the parser test).** The
+   parser-only test (`node` script calling `parseJobPosting` and driving the form) showed the right
+   fields getting filled, but a manual screenshot of the actual modal showed the confirmation note
+   underneath saying *"Couldn't confidently pick anything out of that text"* even when all four fields
+   had just been filled in correctly. Cause: `handleAutoFill` built the list of newly-filled field names
+   inside the `setForm(f => ...)` updater callback, then read that list immediately after calling
+   `setForm` to build the message -- but React doesn't invoke a function-form `setState` updater
+   synchronously; it runs later, during the state-update pass. The message was being composed from an
+   array that was still empty at the point it was read. This is exactly the kind of bug that only shows
+   up when you look at the actual rendered screen, not when you read the code or test the parser
+   function in isolation -- the parser was correct the whole time, only the message was wrong. Fixed by
+   computing the diff against the current `form` state directly (a plain object read, not a functional
+   updater) before calling `setForm`, so the "filled in company, job title, ..." message is built from
+   the same synchronous pass that decides what to fill.
+
 ## Known limitations, stated rather than hidden
 
 - No automated test suite is committed -- verification was done with one-off Playwright scripts during
@@ -118,3 +155,6 @@ until they're moved again.
   warning about total database size if someone attaches many large files.
 - The funnel analytics' historical accuracy is only as good as `statusHistory`, which only starts
   recording from this version onward.
+- The paste-to-auto-fill parser is heuristic, not AI -- it will miss or misparse postings in formats
+  it doesn't recognize. It's designed to only ever fill blank fields (never overwrite something you
+  typed) and always leaves the result editable, but it's still worth a manual glance before saving.
